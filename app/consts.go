@@ -3,11 +3,11 @@ package app
 import "errors"
 
 const (
-	Pending    = "Pending"
+	Pending    = "pending"
 	Processing = "processing"
 	Completed  = "completed"
 
-	numWorkers = 3
+	numWorkers = 5
 )
 
 var (

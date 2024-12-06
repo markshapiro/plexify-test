@@ -2,6 +2,7 @@ package main
 
 import (
 	"bytes"
+	"context"
 	"encoding/json"
 	"fmt"
 	"io"
@@ -19,73 +20,84 @@ const (
 	numClients = 1
 )
 
+var (
+	mtx sync.Mutex
+	wg  sync.WaitGroup
+	ids []int64
+)
+
 func main() {
 
-	var mtx sync.Mutex
-	var ids []int64
+	ctx, cancel := context.WithCancel(context.Background())
 
 	stop := make(chan os.Signal, 1)
 	signal.Notify(stop, syscall.SIGINT)
-
-	var wg sync.WaitGroup
+	//signal.Notify(stop, syscall.SIGINT, syscall.SIGTERM)
 
 	wg.Add(numClients)
 	for w := 0; w < numClients; w++ {
-		go func() {
+		go worker(ctx)
+	}
 
-			var done = false
+	<-stop
 
-			for !done {
-				defer wg.Done()
+	cancel()
 
-				res, status, err := PostRequest(`http://localhost:8080/job/`, []byte(`{"payload":"Process this job!"}`))
+	wg.Wait()
+}
+
+func worker(ctx context.Context) {
+
+	defer wg.Done()
+
+	for true {
+
+		res, status, err := PostRequest(`http://localhost:8080/job/`, []byte(`{"payload":"Process this job!"}`))
+		if err != nil {
+			panic(err.Error())
+		}
+		if status == http.StatusAccepted {
+			var resp app.JobIDDto
+			err = json.Unmarshal(res, &resp)
+			if err != nil {
+				panic(err.Error())
+			}
+
+			mtx.Lock()
+			ids = append(ids, resp.JobID)
+			mtx.Unlock()
+		}
+
+		if rand.IntN(3) == 0 {
+
+			chosenID := ids[rand.IntN(len(ids))]
+
+			res, status, err := GetRequest(fmt.Sprintf(`http://localhost:8080/status/%d`, chosenID))
+			if err != nil {
+				panic(err.Error())
+			}
+
+			if status == http.StatusAccepted {
+				var resp app.JobStatusDto
+				err = json.Unmarshal(res, &resp)
 				if err != nil {
 					panic(err.Error())
 				}
-				if status == http.StatusAccepted {
-					var resp app.JobIDDto
-					err = json.Unmarshal(res, &resp)
-					if err != nil {
-						panic(err.Error())
-					}
 
-					mtx.Lock()
-					ids = append(ids, resp.JobID)
-					mtx.Unlock()
-				}
-
-				if rand.IntN(5) == 0 {
-					chosenID := ids[rand.IntN(len(ids))]
-
-					res, status, err := GetRequest(fmt.Sprintf(`http://localhost:8080/status/%d`, chosenID))
-					if err != nil {
-						panic(err.Error())
-					}
-
-					if status == http.StatusAccepted {
-						var resp app.JobStatusDto
-						err = json.Unmarshal(res, &resp)
-						if err != nil {
-							panic(err.Error())
-						}
-
-						fmt.Println(resp)
-					}
-
-				}
-
-				select {
-				case <-stop:
-					fmt.Print("---")
-					done = true
-				default:
-				}
-
-				time.Sleep(time.Second)
+				fmt.Println(resp)
 			}
-		}()
+
+		}
+
+		select {
+		case <-ctx.Done():
+			return
+		default:
+		}
+
+		time.Sleep(time.Second * 2)
 	}
-	wg.Wait()
+
 }
 
 func GetRequest(url string) ([]byte, int, error) {

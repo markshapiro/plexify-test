@@ -1,1 +1,9 @@
-# plexify-test
+
+
+
+go run .\main.go
+
+
+go run .\client.go
+
+
