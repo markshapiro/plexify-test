@@ -20,6 +20,10 @@ func (repo *JobRepo) addNew() int64 {
 	return newID
 }
 
+func (repo *JobRepo) deleteJob(key int64) {
+	repo.statuses.Delete(key)
+}
+
 func (repo *JobRepo) setStatus(key int64, status string) error {
 
 	// waning: not atomic

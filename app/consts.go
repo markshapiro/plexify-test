@@ -8,6 +8,11 @@ const (
 	Completed  = "completed"
 
 	numWorkers = 5
+
+	ChanBufferSize = 1000
+
+	minJobDurationSeconds = 5
+	maxJobDurationSeconds = 30
 )
 
 var (

@@ -17,6 +17,6 @@ func NewStringJobProcessor() JobProcessor {
 }
 
 func (StringJobProcessor) Process(job Job) error {
-	time.Sleep(time.Duration(rand.IntN(26)+5) * time.Second)
+	time.Sleep(time.Duration(rand.IntN(maxJobDurationSeconds-minJobDurationSeconds+1)+minJobDurationSeconds) * time.Second)
 	return nil
 }

@@ -12,18 +12,28 @@ import (
 	"os/signal"
 	"plexify-test/app"
 	"sync"
+	"sync/atomic"
 	"syscall"
 	"time"
 )
 
 const (
-	numClients = 1
+	numClients        = 10
+	RequestIntervalMS = 500
 )
 
 var (
 	mtx sync.Mutex
 	wg  sync.WaitGroup
 	ids []int64
+
+	jobCreateRequests503 int64 = 0
+
+	sucessfulJobRequests   int64 = 0
+	unsucessfulJobRequests int64 = 0
+
+	sucessfulStatusRequests   int64 = 0
+	unsucessfulStatusRequests int64 = 0
 )
 
 func main() {
@@ -31,19 +41,25 @@ func main() {
 	ctx, cancel := context.WithCancel(context.Background())
 
 	stop := make(chan os.Signal, 1)
-	signal.Notify(stop, syscall.SIGINT)
-	//signal.Notify(stop, syscall.SIGINT, syscall.SIGTERM)
+	signal.Notify(stop, syscall.SIGINT, syscall.SIGTERM)
 
 	wg.Add(numClients)
 	for w := 0; w < numClients; w++ {
 		go worker(ctx)
 	}
 
+	wg.Add(1)
+	go printStatsWorker(ctx)
+
 	<-stop
+
+	fmt.Println("Stopping Client Workers...")
 
 	cancel()
 
 	wg.Wait()
+
+	fmt.Println("Workers stopped")
 }
 
 func worker(ctx context.Context) {
@@ -57,6 +73,9 @@ func worker(ctx context.Context) {
 			panic(err.Error())
 		}
 		if status == http.StatusAccepted {
+
+			atomic.AddInt64(&sucessfulJobRequests, 1)
+
 			var resp app.JobIDDto
 			err = json.Unmarshal(res, &resp)
 			if err != nil {
@@ -66,6 +85,13 @@ func worker(ctx context.Context) {
 			mtx.Lock()
 			ids = append(ids, resp.JobID)
 			mtx.Unlock()
+		} else {
+
+			atomic.AddInt64(&unsucessfulJobRequests, 1)
+
+			if status == http.StatusServiceUnavailable {
+				atomic.AddInt64(&jobCreateRequests503, 1)
+			}
 		}
 
 		if rand.IntN(3) == 0 {
@@ -77,14 +103,18 @@ func worker(ctx context.Context) {
 				panic(err.Error())
 			}
 
-			if status == http.StatusAccepted {
+			if status == http.StatusOK {
+
+				atomic.AddInt64(&sucessfulStatusRequests, 1)
+
 				var resp app.JobStatusDto
 				err = json.Unmarshal(res, &resp)
 				if err != nil {
 					panic(err.Error())
 				}
 
-				fmt.Println(resp)
+			} else {
+				atomic.AddInt64(&unsucessfulStatusRequests, 1)
 			}
 
 		}
@@ -95,9 +125,36 @@ func worker(ctx context.Context) {
 		default:
 		}
 
-		time.Sleep(time.Second * 2)
+		time.Sleep(time.Millisecond * RequestIntervalMS)
 	}
 
+}
+
+func printStatsWorker(ctx context.Context) {
+	defer wg.Done()
+
+	for true {
+
+		fmt.Printf(`
+-----------------------------------------
+sucessful /job requests: %d
+unsucessful /job Requests: %d
+sucessful /status/:id requests: %d
+unsucessful /status/:id Requests: %d
+job create requests with status 503: %d
+`,
+			sucessfulJobRequests, unsucessfulJobRequests,
+			sucessfulStatusRequests, unsucessfulStatusRequests,
+			jobCreateRequests503)
+
+		select {
+		case <-ctx.Done():
+			return
+		default:
+		}
+
+		time.Sleep(time.Second)
+	}
 }
 
 func GetRequest(url string) ([]byte, int, error) {

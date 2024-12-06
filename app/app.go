@@ -8,7 +8,7 @@ import (
 
 var (
 	jobRepo   = NewJobRepo()
-	jobChan   = make(chan JobTask, 1000)
+	jobChan   = make(chan JobTask, ChanBufferSize)
 	processor JobProcessor
 	wg        sync.WaitGroup
 )
@@ -48,6 +48,10 @@ func JobCreate(newJob JobCreateDto) (JobIDDto, error) {
 	select {
 	case jobChan <- JobTask{newID, newJob.Payload}:
 	case <-time.After(2 * time.Second):
+		// if couldnt add to queue because buffer full
+
+		jobRepo.deleteJob(newID)
+
 		return JobIDDto{}, ErrQueueFull
 	}
 
