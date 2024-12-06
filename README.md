@@ -1,8 +1,19 @@
 
+run app:
+<br/>`go run main.go`
 
+run stress test client:
+<br/>`go run client.go`
 
-`go run main.go`
+CTRL-C to exit both of them
 
-`go run client.go`
+---------------------
 
+to improve:
+1. orgnize http hanlders code
+2. use dependency more, inject repositories and services (e.g. JobProcessor interface)
+3. `setStatus()` of `JobRepo` doesnt atomically check if job exists in repo before changing status in sync map
 
+tradeoffs:
+1. in `JobCreate(newJob JobCreateDto)`, job can created but not scheduled if the channel is full, it will be still deleted 2s later but its a bad practice when storing into databases.
+2. if there are more requests than workers can handle, they will be stored in buffered channel, if channel buffer exceeds `chanBufferSize` it will return response 503

@@ -8,7 +8,7 @@ import (
 
 var (
 	jobRepo   = NewJobRepo()
-	jobChan   = make(chan JobTask, ChanBufferSize)
+	jobChan   = make(chan JobTask, chanBufferSize)
 	processor JobProcessor
 	wg        sync.WaitGroup
 )
@@ -32,9 +32,12 @@ func worker(wg *sync.WaitGroup, jobs <-chan JobTask) {
 	defer wg.Done()
 	for job := range jobs {
 
-		processor.Process(Job{job.Payload})
+		err := processor.Process(Job{job.Payload})
+		if err != nil {
+			fmt.Println("job failed:", err.Error())
+		}
 
-		err := jobRepo.setStatus(job.JobID, Completed)
+		err = jobRepo.setStatus(job.JobID, Completed)
 		if err != nil {
 			fmt.Println("tried to set status of mom existent job")
 		}

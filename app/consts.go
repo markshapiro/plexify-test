@@ -9,7 +9,7 @@ const (
 
 	numWorkers = 5
 
-	ChanBufferSize = 1000
+	chanBufferSize = 1000
 
 	minJobDurationSeconds = 5
 	maxJobDurationSeconds = 30
