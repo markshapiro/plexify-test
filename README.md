@@ -1,9 +1,8 @@
 
 
 
-go run .\main.go
+`go run main.go`
 
-
-go run .\client.go
+`go run client.go`
 
 

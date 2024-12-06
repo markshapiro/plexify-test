@@ -16,7 +16,7 @@ import (
 )
 
 var (
-	getStatusRequestArgs = regexp.MustCompile("/status/([0-9]+)")
+	getStatusRequestArgs = regexp.MustCompile("^/status/([0-9]+)$")
 )
 
 func statusHandler(w http.ResponseWriter, r *http.Request) {
@@ -26,9 +26,14 @@ func statusHandler(w http.ResponseWriter, r *http.Request) {
 
 		args := getStatusRequestArgs.FindStringSubmatch(r.URL.Path)
 
+		if len(args) < 2 {
+			http.Error(w, "Bad Request", http.StatusBadRequest)
+			return
+		}
+
 		id, err := strconv.Atoi(args[1])
 		if err != nil {
-			http.Error(w, "Internal Error", http.StatusInternalServerError)
+			http.Error(w, "Bad Request", http.StatusBadRequest)
 			return
 		}
 
@@ -67,7 +72,12 @@ func jobHandler(w http.ResponseWriter, r *http.Request) {
 
 		err = json.Unmarshal(body, &newJob)
 		if err != nil {
-			http.Error(w, "Internal Error", http.StatusInternalServerError)
+			http.Error(w, "Bad Request", http.StatusBadRequest)
+			return
+		}
+
+		if len(newJob.Payload) == 0 {
+			http.Error(w, "Bad Request", http.StatusBadRequest)
 			return
 		}
 
