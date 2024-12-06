@@ -40,9 +40,6 @@ func main() {
 
 	ctx, cancel := context.WithCancel(context.Background())
 
-	stop := make(chan os.Signal, 1)
-	signal.Notify(stop, syscall.SIGINT, syscall.SIGTERM)
-
 	wg.Add(numClients)
 	for w := 0; w < numClients; w++ {
 		go worker(ctx)
@@ -50,6 +47,9 @@ func main() {
 
 	wg.Add(1)
 	go printStatsWorker(ctx)
+
+	stop := make(chan os.Signal, 1)
+	signal.Notify(stop, syscall.SIGINT, syscall.SIGTERM)
 
 	<-stop
 

@@ -130,15 +130,15 @@ func main() {
 		Handler: mux,
 	}
 
-	stop := make(chan os.Signal, 1)
-	signal.Notify(stop, syscall.SIGINT, syscall.SIGTERM)
-
 	go func() {
 		fmt.Println("Server is running on port 8080...")
 		if err := server.ListenAndServe(); err != nil && err != http.ErrServerClosed {
 			fmt.Println("Server error:", err)
 		}
 	}()
+
+	stop := make(chan os.Signal, 1)
+	signal.Notify(stop, syscall.SIGINT, syscall.SIGTERM)
 
 	<-stop
 
