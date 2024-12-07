@@ -2,133 +2,37 @@ package main
 
 import (
 	"context"
-	"encoding/json"
 	"fmt"
-	"io"
 	"net/http"
 	"os"
 	"os/signal"
-	"plexify-test/app"
-	"regexp"
-	"strconv"
 	"syscall"
 	"time"
+
+	"plexify-test/handlers"
+	"plexify-test/repos"
+	"plexify-test/services"
+	"plexify-test/utils"
 )
-
-var (
-	getStatusRequestArgs = regexp.MustCompile("^/status/([0-9]+)$")
-)
-
-func statusHandler(w http.ResponseWriter, r *http.Request) {
-
-	switch {
-	case r.Method == http.MethodGet:
-
-		args := getStatusRequestArgs.FindStringSubmatch(r.URL.Path)
-
-		if len(args) < 2 {
-			http.Error(w, "Bad Request", http.StatusBadRequest)
-			return
-		}
-
-		id, err := strconv.Atoi(args[1])
-		if err != nil {
-			http.Error(w, "Bad Request", http.StatusBadRequest)
-			return
-		}
-
-		resp, err := app.GetJobStatus(int64(id))
-		if err != nil {
-
-			if err == app.ErrNotFound {
-				http.Error(w, "Not Found", http.StatusNotFound)
-				return
-			}
-
-			http.Error(w, "Internal Error", http.StatusInternalServerError)
-			return
-		}
-
-		writeResponse(w, resp, http.StatusOK)
-
-	default:
-		notFoundHandler(w)
-	}
-}
-
-func jobHandler(w http.ResponseWriter, r *http.Request) {
-
-	switch {
-	case r.Method == http.MethodPost:
-
-		defer r.Body.Close()
-		body, err := io.ReadAll(r.Body)
-		if err != nil {
-			http.Error(w, "Internal Error", http.StatusInternalServerError)
-			return
-		}
-
-		var newJob app.JobCreateDto
-
-		err = json.Unmarshal(body, &newJob)
-		if err != nil {
-			http.Error(w, "Bad Request", http.StatusBadRequest)
-			return
-		}
-
-		if len(newJob.Payload) == 0 {
-			http.Error(w, "Bad Request", http.StatusBadRequest)
-			return
-		}
-
-		resp, err := app.JobCreate(newJob)
-		if err != nil {
-
-			if err == app.ErrQueueFull {
-				http.Error(w, "Unavailable", http.StatusServiceUnavailable)
-				return
-			}
-
-			http.Error(w, "Internal Error", http.StatusInternalServerError)
-			return
-		}
-
-		writeResponse(w, resp, http.StatusAccepted)
-
-	default:
-		notFoundHandler(w)
-	}
-}
-
-func writeResponse(w http.ResponseWriter, resp any, status int) {
-	b, err := json.Marshal(resp)
-	if err != nil {
-		http.Error(w, "Internal Error", http.StatusInternalServerError)
-		return
-	}
-
-	w.WriteHeader(status)
-	w.Write(b)
-}
-
-func notFoundHandler(w http.ResponseWriter) {
-	http.Error(w, "Not Found", http.StatusNotFound)
-}
 
 func main() {
 
-	app.Start()
+	jobRepo := repos.NewJobRepo()
+	jobProcessor := utils.NewStringJobProcessor()
+
+	jobService := services.NewJobService(jobRepo, jobProcessor)
+	jobHandler := handlers.NewJobHandler(jobService)
+
+	jobService.StartWorkers()
 
 	mux := http.NewServeMux()
-
-	mux.HandleFunc("/job/", jobHandler)
-
-	mux.HandleFunc("/status/", statusHandler)
 
 	server := &http.Server{
 		Addr:    ":8080",
 		Handler: mux,
 	}
+
+	jobHandler.MountEndpoints(mux)
 
 	go func() {
 		fmt.Println("Server is running on port 8080...")
@@ -155,7 +59,8 @@ func main() {
 
 	fmt.Println("Stopping Workers...")
 
-	app.Stop()
+	jobService.StopWorkers()
 
 	fmt.Println("Workers stopped")
+
 }

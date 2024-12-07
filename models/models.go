@@ -1,4 +1,10 @@
-package app
+package models
+
+const (
+	Pending    = "pending"
+	Processing = "processing"
+	Completed  = "completed"
+)
 
 type JobCreateDto struct {
 	Payload string `json:"payload"`

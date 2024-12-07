@@ -1,22 +1,28 @@
-package app
+package utils
 
 import (
 	"math/rand/v2"
+	"plexify-test/models"
 	"time"
 )
 
+const (
+	minJobDurationSeconds = 5
+	maxJobDurationSeconds = 30
+)
+
 type JobProcessor interface {
-	Process(job Job) error
+	Process(job models.Job) error
 }
 
-type StringJobProcessor struct {
+type stringJobProcessor struct {
 }
 
 func NewStringJobProcessor() JobProcessor {
-	return &StringJobProcessor{}
+	return &stringJobProcessor{}
 }
 
-func (StringJobProcessor) Process(job Job) error {
+func (stringJobProcessor) Process(job models.Job) error {
 	time.Sleep(time.Duration(rand.IntN(maxJobDurationSeconds-minJobDurationSeconds+1)+minJobDurationSeconds) * time.Second)
 	return nil
 }

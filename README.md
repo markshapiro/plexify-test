@@ -11,8 +11,7 @@ CTRL-C to exit both of them
 
 to improve:
 1. orgnize http hanlders code
-2. use dependency injection, inject repositories and services (e.g. JobProcessor interface)
-3. `setStatus()` of `JobRepo` doesnt atomically check if job exists in repo before changing status in sync map
+2. `setStatus()` of `JobRepo` doesnt atomically check if job exists in repo before changing status in sync map
 
 tradeoffs:
 1. in `JobCreate(newJob JobCreateDto)`, job can be created but not scheduled if the channel is full, it will be still deleted 2s later but its a bad practice when storing into databases.

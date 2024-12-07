@@ -10,7 +10,7 @@ import (
 	"net/http"
 	"os"
 	"os/signal"
-	"plexify-test/app"
+	"plexify-test/models"
 	"sync"
 	"sync/atomic"
 	"syscall"
@@ -76,7 +76,7 @@ func worker(ctx context.Context) {
 
 			atomic.AddInt64(&sucessfulJobRequests, 1)
 
-			var resp app.JobIDDto
+			var resp models.JobIDDto
 			err = json.Unmarshal(res, &resp)
 			if err != nil {
 				panic(err.Error())
@@ -107,7 +107,7 @@ func worker(ctx context.Context) {
 
 				atomic.AddInt64(&sucessfulStatusRequests, 1)
 
-				var resp app.JobStatusDto
+				var resp models.JobStatusDto
 				err = json.Unmarshal(res, &resp)
 				if err != nil {
 					panic(err.Error())
