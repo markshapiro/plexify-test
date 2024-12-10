@@ -23,6 +23,15 @@ func NewStringJobProcessor() JobProcessor {
 }
 
 func (stringJobProcessor) Process(job models.Job) error {
-	time.Sleep(time.Duration(rand.IntN(maxJobDurationSeconds-minJobDurationSeconds+1)+minJobDurationSeconds) * time.Second)
+
+	var randomTimeMS = (rand.Int64N(maxJobDurationSeconds-minJobDurationSeconds+1) + minJobDurationSeconds) * 1000
+	start := makeTimestamp()
+	for makeTimestamp()-start < randomTimeMS {
+	}
+
 	return nil
+}
+
+func makeTimestamp() int64 {
+	return time.Now().UnixNano() / 1e6
 }
